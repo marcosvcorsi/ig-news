@@ -22,10 +22,25 @@ export default NextAuth({
       try {
         const { email } = user;
 
+        const matchByEmail = q.Match(
+          q.Index('user_by_email'),
+          q.Casefold(email),
+        )
+
         await fauna.query(
-          q.Create(
-            q.Collection('users'),
-            { data: { email }}
+          q.If(
+            q.Not(
+              q.Exists(
+                matchByEmail
+              )
+            ),
+            q.Create(
+              q.Collection('users'),
+              { data: { email }}
+            ),
+            q.Get(
+              matchByEmail
+            )
           )
         )
 
