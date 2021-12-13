@@ -22,9 +22,15 @@ async function buffer(readable: Readable) {
 
 enum Events {
   CHECKOUT_SESSION_COMPLETED = "checkout.session.completed",
+  CUSTOMER_SUBSCRIPTION_UPDATED = "customer.subscription.updated",
+  CUSTOMER_SUBSCRIPTION_DELETED = "customer.subscription.deleted",
 }
 
-const events = new Set([Events.CHECKOUT_SESSION_COMPLETED as string]);
+const events = new Set([
+  Events.CHECKOUT_SESSION_COMPLETED,
+  Events.CUSTOMER_SUBSCRIPTION_UPDATED,
+  Events.CUSTOMER_SUBSCRIPTION_DELETED,
+]) as Set<String>;
 
 const webhookHandler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== "POST") {
@@ -54,12 +60,23 @@ const webhookHandler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (events.has(type)) {
     try {
       switch (type) {
+        case Events.CUSTOMER_SUBSCRIPTION_UPDATED:
+        case Events.CUSTOMER_SUBSCRIPTION_DELETED:
+          const subscription = event.data.object as Stripe.Subscription;
+
+          await saveSubscription(
+            subscription.id,
+            subscription.customer.toString()
+          );
+
+          break;
         case Events.CHECKOUT_SESSION_COMPLETED:
           const checkoutSession = event.data.object as Stripe.Checkout.Session;
 
           await saveSubscription(
             checkoutSession.subscription.toString(),
-            checkoutSession.customer.toString()
+            checkoutSession.customer.toString(),
+            true
           );
           break;
         default:
